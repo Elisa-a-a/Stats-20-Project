@@ -1,4 +1,4 @@
-setwd("~/Desktop/app1")
+setwd("~/Documents/GitHub")
 getwd()
 
 library(shiny)
