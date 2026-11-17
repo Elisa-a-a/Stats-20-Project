@@ -4,6 +4,7 @@ getwd()
 library(shiny)
 library(bslib)
 
+<<<<<<< HEAD
 #SideBar
 ui <- page_sidebar(
   # App title ----
@@ -41,11 +42,102 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
+=======
+>>>>>>> c5151c10f407310f4d6b156d5bec7ff59f15f908
 
 #Initial Loading Page (Map + Sidebar)
+
+#SideBar
+ui <- page_sidebar(
+  title = "StudySpots",
+  theme = bs_theme(version = 5, primary = "#1F6F5C", bg = "#F6F4EF", fg = "#1F2421"))
+
+  sidebar = sidebar(
+    width = 380,
+    textInput("q", "Search study spots",
+              placeholder = "Search by building name or location", width = "100%"),
+    uiOutput("cards"))
+  
+
+
+
 
 
 #Review
 
+library(shiny)
+library(DT)
 
+reviews <- data.frame(
+  reviewer_name = character(),
+  date_stamp    = character(),
+  stars_wifi    = numeric(),
+  stars_etc     = numeric(),
+  write_up      = character(),
+  pictures      = I(list())
+)
+
+ui <- fluidPage(
+  titlePanel("Reviews"),
+  sidebarLayout(
+    sidebarPanel(
+      textInput("name", "Reviewer name"),
+      sliderInput("wifi", "Wifi rating", min = 1, max = 5, value = 3),
+      sliderInput("outlet", "Outlet access", min = 1, max = 5, value = 3),
+      sliderInput("traffic", "Traffic level", min = 1, max = 5, value = 3),
+      sliderInput("noise", "Noise level", min = 1, max = 5, value = 3),
+      sliderInput("seating", "Seating Availability", min = 1, max = 5, value = 3),
+      textAreaInput("text", "Overall Thoughts"),
+      fileInput("pics", "Pictures", multiple = TRUE, accept = "image/*"),
+      actionButton("add", "Add review", class = "btn-primary")
+    ),
+    mainPanel(DTOutput("tbl"))
+  )
+)
+
+server <- function(input, output, session) {
+  rv <- reactiveVal(reviews)
+  
+  # "Add review" button -> append a row to the data frame
+  observeEvent(input$add, {
+    req(input$name)
+    new <- data.frame(
+      reviewer_name = input$name,
+      date_stamp    = format(Sys.Date()),
+      stars_wifi    = input$wifi,
+      stars_etc     = input$etc,
+      write_up      = input$text
+    )
+    new$pictures <- I(list(if (is.null(input$pics)) character() else input$pics$datapath))
+    rv(rbind(rv(), new))
+  })
+  
+  # Render the table with a Delete button on every row
+  output$tbl <- renderDT({
+    df <- rv()
+    req(nrow(df) > 0)
+    
+    df$pictures <- vapply(df$pictures, length, integer(1))  # show picture count
+    df$actions <- sprintf(
+      '<button class="btn btn-sm btn-danger"
+         onclick="Shiny.setInputValue(\'delete_row\', %d, {priority: \'event\'})">Delete</button>',
+      seq_len(nrow(df))
+    )
+    
+    datatable(df, escape = FALSE, selection = "none", rownames = FALSE)
+  })
+  
+  # Delete button clicked -> drop that row
+  observeEvent(input$delete_row, {
+    rv(rv()[-input$delete_row, , drop = FALSE])
+  })
+}
+
+shinyApp(ui, server)
+
+#hi
 #Request
+
+
+
+shinyApp(ui = ui, server = server)
