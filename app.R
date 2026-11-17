@@ -1,26 +1,26 @@
-setwd("~/Desktop/app1")
+setwd("~/Documents/GitHub")
 getwd()
 
 library(shiny)
 library(bslib)
 
-# Define UI for app that draws a histogram ----
+#SideBar
 ui <- page_sidebar(
   # App title ----
-  title = "Hello World!",
+  title = "Study Spots!",
   # Sidebar panel for inputs ----
   sidebar = sidebar(
     # Input: Slider for the number of bins ----
     sliderInput(
       inputId = "bins",
-      label = "Number of bins:",
-      min = 1,
+      label = "Number of Bins:",
+      min = 2,
       max = 50,#hi
       value = 30
     )
   ),
   # Output: Histogram ----
-  plotOutput(outputId = "distPlot")
+ 
 )
 
 # Define server logic required to draw a histogram ----
@@ -40,3 +40,12 @@ server <- function(input, output) {
 }
 
 shinyApp(ui = ui, server = server)
+
+
+#Initial Loading Page (Map + Sidebar)
+
+
+#Review
+
+
+#Request

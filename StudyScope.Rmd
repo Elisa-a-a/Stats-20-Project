@@ -43,4 +43,24 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 print("testing")
 ```
+```{r}
+#Sections for reviews within data frame
+
+columns = ["place", "overall", "wifi", "outlets", "busyness", "noise", "seating"]
+df = x.DataFrame(columns=columns)
+
+# Add a review (e.g., when the user submits their ratings)
+def add_review(df, place, overall, wifi, outlets, busyness, noise, seating):
+    ratings = [overall, wifi, outlets, busyness, noise, seating]
+    if not all(1 <= r <= 5 for r in ratings):
+        raise ValueError("Ratings must be between 1 and 5")
+    df.loc[len(df)] = [place, *ratings]
+    return df
+
+df = add_review(df, "Blue Bottle", 5, 4, 3, 2, 4, 3)
+df = add_review(df, "Blue Bottle", 4, 5, 2, 3, 3, 4)
+
+# Average each category per place
+print(df.groupby("place")[columns[1:]].mean())
+```
 
