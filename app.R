@@ -7,14 +7,14 @@ library(bslib)
 #SideBar
 ui <- page_sidebar(
   # App title ----
-  title = "Hello World!",
+  title = "Study Spots!",
   # Sidebar panel for inputs ----
   sidebar = sidebar(
     # Input: Slider for the number of bins ----
     sliderInput(
       inputId = "bins",
-      label = "Number of bins:",
-      min = 1,
+      label = "Number of Bins:",
+      min = 2,
       max = 50,#hi
       value = 30
     )

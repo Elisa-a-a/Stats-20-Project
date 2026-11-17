@@ -1,0 +1,13 @@
+---
+title: "Stats_20_1B_Discussion_8"
+author: "Keilah Lim"
+date: "2026-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+setwd("~/Desktop/STATS20")
+getwd()
+tvdb <- read.csv("tvdb.csv")
+tvdb
+```
