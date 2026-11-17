@@ -4,7 +4,6 @@ getwd()
 library(shiny)
 library(bslib)
 
-<<<<<<< HEAD
 #SideBar
 ui <- page_sidebar(
   # App title ----
@@ -19,7 +18,7 @@ ui <- page_sidebar(
       max = 50,#hi
       value = 30
     )
-  ),
+  )
   # Output: Histogram ----
  
 )
@@ -42,8 +41,6 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
-=======
->>>>>>> c5151c10f407310f4d6b156d5bec7ff59f15f908
 
 #Initial Loading Page (Map + Sidebar)
 
