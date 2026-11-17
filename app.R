@@ -4,7 +4,7 @@ getwd()
 library(shiny)
 library(bslib)
 
-# Define UI for app that draws a histogram ----
+#SideBar
 ui <- page_sidebar(
   # App title ----
   title = "Hello World!",
@@ -20,7 +20,7 @@ ui <- page_sidebar(
     )
   ),
   # Output: Histogram ----
-  plotOutput(outputId = "distPlot")
+ 
 )
 
 # Define server logic required to draw a histogram ----
@@ -40,3 +40,12 @@ server <- function(input, output) {
 }
 
 shinyApp(ui = ui, server = server)
+
+
+#Initial Loading Page (Map + Sidebar)
+
+
+#Review
+
+
+#Request
