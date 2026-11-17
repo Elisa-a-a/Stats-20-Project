@@ -15,7 +15,7 @@ ui <- page_sidebar(
   sidebar = sidebar(
     width = 380,
     textInput("q", "Search study spots",
-              placeholder = "Search by name or neighborhood", width = "100%"),
+              placeholder = "Search by building name or location", width = "100%"),
     uiOutput("cards"))
   
 
