@@ -1,9 +1,7 @@
 library(shiny)
 
 
-# -----------------------------------------------------------------------------
-# 1. DATA
-# -----------------------------------------------------------------------------
+#DATA
 
 spots <- data.frame(
   id = 1:4,
@@ -37,8 +35,7 @@ reviews <- data.frame(
               "Quiet in the mornings with plenty of tables.")
 )
 
-# NEW: if we already saved reviews to a file in an earlier run, load those
-# instead of the sample ones. (write.csv happens when someone submits a review.)
+# If we already saved reviews to a file in an earlier run, load those instead.
 if (file.exists("reviews.csv")) {
   reviews <- read.csv("reviews.csv", stringsAsFactors = FALSE)
 }
@@ -48,8 +45,6 @@ if (file.exists("reviews.csv")) {
 # 2. FUNCTIONS
 # -----------------------------------------------------------------------------
 
-# NEW: this function now takes the reviews data frame as an input,
-# because the reviews can change when someone submits a new one.
 avg_rating <- function(id, data) {
   round(mean(data$stars[data$spot_id == id]), 1)
 }
@@ -59,13 +54,35 @@ star_text <- function(n) {
   paste0(strrep("\u2605", n), strrep("\u2606", 5 - n))
 }
 
+# ---- Send the full review (with category ratings) somewhere else ----
+send_review_elsewhere <- function(review) {
+  # Example: my_reviews <<- rbind(my_reviews, review)
+  message("Detailed review submitted by: ", review$reviewer_name)  # placeholder
+}
+
+# A row of 5 clickable star buttons
+star_input <- function(id, label) {
+  tags$div(
+    class = "star-group", `data-input` = id,
+    tags$label(label),
+    tags$div(
+      lapply(1:5, function(i) {
+        tags$button(type = "button", class = "star-btn",
+                    `data-value` = i, HTML("&#9733;"))
+      })
+    )
+  )
+}
+
+star_ids <- c("star_wifi", "star_outlet", "star_traffic", "star_noise", "star_seating")
+
 
 # -----------------------------------------------------------------------------
 # 3. STYLING
 # -----------------------------------------------------------------------------
 app_css <- "
-  body { background: #F4F2ED; font-family: Helvetica, Arial, sans-serif; }
-  .side { width: 400px; height: 100vh; padding: 20px; overflow-y: auto; }
+  body { background: #F4F2ED; color: #222; font-family: Helvetica, Arial, sans-serif; }
+  .side { width: 400px; max-width: 100%; height: 100vh; padding: 20px; overflow-y: auto; }
 
   .spot-card { display: flex; gap: 16px; background: white; border: 1px solid #E6E3DA;
                border-radius: 18px; padding: 14px; margin-bottom: 12px; cursor: pointer; }
@@ -87,15 +104,43 @@ app_css <- "
   .big-number { font-size: 48px; text-align: center; }
   .stars { color: #F4C242; }
   .review { padding: 12px 0; border-bottom: 1px solid #E6E3DA; }
+
+  /* Full-screen review page: covers the whole viewport on any device */
+  .review-fullscreen { position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                       z-index: 1000; background: #F4F2ED; color: #222;
+                       overflow-y: auto; padding: 24px 40px; box-sizing: border-box; }
+  .review-fullscreen .form-group { max-width: 700px; }
+  .review-fullscreen textarea { min-height: 150px; }
+  .star-group { margin-bottom: 12px; }
+  .star-btn { background: none; border: none; font-size: 30px;
+              color: #ccc; cursor: pointer; padding: 0 2px; }
+  .star-btn.active, .star-btn:hover { color: #f5b301; }
+  @media (max-width: 600px) { .review-fullscreen { padding: 16px; } }
+"
+
+star_js <- "
+  // Clicking a star lights up all stars up to it and sends the value to Shiny
+  $(document).on('click', '.star-btn', function() {
+    var group = $(this).closest('.star-group');
+    var val = $(this).data('value');
+    group.find('.star-btn').each(function() {
+      $(this).toggleClass('active', $(this).data('value') <= val);
+    });
+    Shiny.setInputValue(group.data('input'), val);
+  });
+
+  // Clear stored ratings each time the form opens
+  Shiny.addCustomMessageHandler('reset_stars', function(ids) {
+    ids.forEach(function(id) { Shiny.setInputValue(id, null); });
+  });
 "
 
 
 # -----------------------------------------------------------------------------
 # 4. UI
 # -----------------------------------------------------------------------------
-#puts the sidebar onto the screen
 ui <- fluidPage(
-  tags$head(tags$style(HTML(app_css))),
+  tags$head(tags$style(HTML(app_css)), tags$script(HTML(star_js))),
   div(class = "side", uiOutput("sidebar"))
 )
 
@@ -105,70 +150,75 @@ ui <- fluidPage(
 # -----------------------------------------------------------------------------
 server <- function(input, output, session) {
   
-  # NEW: the reviews now live in a reactiveVal so the app updates when we add one.
-  # To READ it, write all_reviews().  To CHANGE it, write all_reviews(new_data).
-  all_reviews <- reactiveVal(reviews)
-  
+  all_reviews   <- reactiveVal(reviews)
   selected_spot <- reactiveVal(0)   # 0 = not looking at a spot's reviews
-  rating_spot   <- reactiveVal(0)   # NEW: 0 = not on the rating form
+  rating_spot   <- reactiveVal(0)   # 0 = not on the rating form
+  
+  # Open the full-screen form for a spot (and clear any old star ratings)
+  open_form <- function(spot_id) {
+    session$sendCustomMessage("reset_stars", as.list(star_ids))
+    rating_spot(spot_id)
+  }
   
   # ---- Button clicks ----
+  observeEvent(input$open_spot, { selected_spot(input$open_spot) })
+  observeEvent(input$back,      { selected_spot(0) })
   
-  # Card clicked -> show that spot's reviews
-  observeEvent(input$open_spot, {
-    selected_spot(input$open_spot)
-  })
+  # "Rate this spot" on a card -> open the form
+  observeEvent(input$rate_spot, { open_form(input$rate_spot) })
   
-  # Back arrow on the reviews page -> back to the list
-  observeEvent(input$back, {
+  # "Write a review" on the reviews page -> open the form
+  observeEvent(input$write_review, { open_form(selected_spot()) })
+  
+  # Back button on the form -> all the way back to the landing page
+  observeEvent(input$cancel_rating, {
+    rating_spot(0)
     selected_spot(0)
   })
   
-  # NEW: "Rate this spot" button on a card -> open the form for that spot
-  observeEvent(input$rate_spot, {
-    rating_spot(input$rate_spot)
-  })
-  
-  # NEW: "Write a review" button on the reviews page -> open the form
-  observeEvent(input$write_review, {
-    rating_spot(selected_spot())
-  })
-  
-  # NEW: Cancel button on the form -> close the form
-  observeEvent(input$cancel_rating, {
-    rating_spot(0)
-  })
-  
-  # NEW: Submit button on the form -> save the review
+  # Submit on the form -> save the review
   observeEvent(input$submit_review, {
     
-    if (input$review_text == "") {
-      # Don't allow an empty review
+    ratings <- c(input$star_wifi, input$star_outlet, input$star_traffic,
+                 input$star_noise, input$star_seating)
+    
+    if (length(ratings) < 5) {
+      showNotification("Please rate all 5 categories.", type = "warning")
+      
+    } else if (trimws(input$review_text) == "") {
       showNotification("Please write a short review first.", type = "error")
       
     } else {
-      # If they leave the name blank, call them Anonymous
-      if (input$review_name == "") {
-        who <- "Anonymous Bruin"
-      } else {
-        who <- input$review_name
-      }
+      who <- if (trimws(input$review_name) == "") "Anonymous Bruin" else input$review_name
       
-      # Make a one-row data frame with the same columns as `reviews`
+      # Overall stars = average of the 5 categories, rounded to a whole star
+      overall <- round(mean(as.numeric(ratings)))
+      
+      # Row for the app's own reviews (same columns as `reviews`)
       new_row <- data.frame(
         spot_id = rating_spot(),
         author  = who,
-        stars   = as.numeric(input$review_stars),   # radio buttons give text, so convert
+        stars   = overall,
         date    = format(Sys.Date(), "%b %d, %Y"),
         text    = input$review_text
       )
       
-      # Put the new review on TOP (rbind stacks data frames) and save the update
       updated <- rbind(new_row, all_reviews())
       all_reviews(updated)
-      
-      # Save to a file so the review is still there next time the app runs
       write.csv(updated, "reviews.csv", row.names = FALSE)
+      
+      # Full detail row, including each category rating
+      send_review_elsewhere(data.frame(
+        reviewer_name = who,
+        date_stamp    = format(Sys.Date()),
+        spot_id       = rating_spot(),
+        stars_wifi    = as.numeric(input$star_wifi),
+        stars_outlet  = as.numeric(input$star_outlet),
+        stars_traffic = as.numeric(input$star_traffic),
+        stars_noise   = as.numeric(input$star_noise),
+        stars_seating = as.numeric(input$star_seating),
+        write_up      = input$review_text
+      ))
       
       # Show the spot's reviews page so they can see their new review
       selected_spot(rating_spot())
@@ -183,26 +233,25 @@ server <- function(input, output, session) {
     
     if (rating_spot() != 0) {
       
-      # ===== NEW: RATING FORM =====
+      # ===== FULL-SCREEN RATING FORM =====
       spot <- spots[spots$id == rating_spot(), ]
       
-      tagList( #keilah code go here
-        h3("Rate ", spot$name),
-        p(class = "meta", paste(spot$area, "-", spot$type)),
-        
-        radioButtons("review_stars", "Your rating (5 is best)",
-                     choices = 5:1, selected = 5, inline = TRUE),
-        textInput("review_name", "Your name (optional)", width = "100%"),
-        textAreaInput("review_text", "Your review", rows = 4, width = "100%",
-                      placeholder = "How was the noise level, seating, outlets, wifi...?"),
-        
-        actionButton("submit_review", "Submit review", class = "solid-btn"),
-        actionButton("cancel_rating", "Cancel", class = "green-btn")
-      ) #keilah code end here
+      div(class = "review-fullscreen",
+          actionButton("cancel_rating", "\u2190 Back"),
+          h2(paste("Review", spot$name)),
+          textInput("review_name", "Reviewer name (optional)"),
+          star_input("star_wifi",    "Wi-Fi quality"),
+          star_input("star_outlet",  "Outlet access"),
+          star_input("star_traffic", "Busyness"),
+          star_input("star_noise",   "Noise level"),
+          star_input("star_seating", "Seating availability"),
+          textAreaInput("review_text", "Overall thoughts", width = "100%"),
+          actionButton("submit_review", "Submit", class = "solid-btn")
+      )
       
     } else if (selected_spot() == 0) {
       
-      # ===== LIST VIEW =====
+      # ===== LANDING PAGE: list of study spots =====
       tagList(
         h5("Search UCLA study spots"),
         textInput("search", label = NULL, placeholder = "Search by name or area of campus"),
@@ -212,7 +261,7 @@ server <- function(input, output, session) {
     } else {
       
       # ===== REVIEWS VIEW =====
-      data <- all_reviews()   # NEW: use the current reviews
+      data <- all_reviews()
       spot <- spots[spots$id == selected_spot(), ]
       these_reviews <- data[data$spot_id == selected_spot(), ]
       n <- nrow(these_reviews)
@@ -260,7 +309,7 @@ server <- function(input, output, session) {
   # ---- The list of spot cards ----
   output$spot_list <- renderUI({
     
-    data <- all_reviews()   # NEW: so the ratings on the cards update too
+    data <- all_reviews()
     
     q <- tolower(input$search)
     if (is.null(q) || q == "") {
@@ -276,8 +325,6 @@ server <- function(input, output, session) {
     lapply(1:nrow(shown), function(i) {
       s <- shown[i, ]
       
-      # Copy-paste JavaScript that tells Shiny which spot was clicked.
-      # stopPropagation() keeps the button click from also opening the card.
       open_js <- paste0("Shiny.setInputValue('open_spot', ", s$id, ", {priority: 'event'})")
       rate_js <- paste0("event.stopPropagation(); Shiny.setInputValue('rate_spot', ", s$id, ", {priority: 'event'})")
       
@@ -296,7 +343,7 @@ server <- function(input, output, session) {
   })
 }
 
-#hi
+
 # -----------------------------------------------------------------------------
 # 6. RUN
 # -----------------------------------------------------------------------------
